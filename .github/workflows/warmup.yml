@@ -1,62 +1,22 @@
-name: Claude Code Warmup
+name: Claude Warmup (2 hesap)
 
 on:
   schedule:
-    - cron: '0 9 * * 1-5'
-  workflow_dispatch: {}
-
-concurrency:
-  group: claude-warmup
-  cancel-in-progress: true
+    - cron: '0 */2 * * *'      # her 2 saatte bir (UTC) — pencere sürekli açık kalır
+  workflow_dispatch:            # gerektiğinde elle tetikleme
 
 jobs:
   warmup:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false          # bir hesabın hatası diğerini iptal etmesin
+      matrix:
+        token: [CLAUDE_OAUTH_TOKEN_A, CLAUDE_OAUTH_TOKEN_B]
     steps:
-      - name: Validate configuration
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-        run: |
-          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN}" ]; then
-            echo "CLAUDE_OAUTH_TOKEN secret is not set."
-            echo "Add it in Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-
-      - name: Install Claude Code
+      - name: Claude Code kur
         run: npm install -g @anthropic-ai/claude-code
-
-      - name: Ping Claude to anchor 5-hour window
+      - name: Warmup mesaji
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-        run: |
-          mkdir -p ~/.claude
-          echo '{"hasCompletedOnboarding":true}' > ~/.claude.json
-          output_file="$(mktemp)"
-          set +e
-          claude -p "hi" --model haiku --no-session-persistence >"$output_file" 2>&1
-          status=$?
-          set -e
-          cat "$output_file"
-
-          if [ $status -eq 0 ]; then
-            echo "Claude warmup request succeeded."
-            echo "✓ Warmup complete"
-            exit 0
-          fi
-
-          if grep -Eiq "expired|unauthorized|invalid token|authentication|auth failed|login required|not logged in" "$output_file"; then
-            echo "Claude token appears invalid or expired."
-            echo "Run 'claude setup-token' locally and update the CLAUDE_OAUTH_TOKEN GitHub secret."
-            exit 1
-          fi
-
-          if grep -qi "rate limit" "$output_file"; then
-            echo "Claude reported a rate limit; treating as warmup success."
-            echo "✓ Warmup complete"
-            exit 0
-          fi
-
-          echo "Claude warmup failed with an unexpected error."
-          exit $status
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets[matrix.token] }}
+        run: claude -p "hi" --model haiku --no-session-persistence || true
