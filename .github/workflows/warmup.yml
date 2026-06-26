@@ -2,7 +2,7 @@ name: Claude Warmup (2 hesap)
 
 on:
   schedule:
-    - cron: '0 */2 * * *'      # her 2 saatte bir (UTC) — pencere sürekli açık kalır
+    - cron: '7,37 * * * *'     # her 30 dk (:07 ve :37 UTC) — saat başı yoğunluğundan kaçınır, boşluk bırakmaz
   workflow_dispatch:            # gerektiğinde elle tetikleme
 
 jobs:
